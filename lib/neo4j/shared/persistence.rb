@@ -189,6 +189,25 @@ module Neo4j::Shared
     end
     alias update_attributes update
 
+    def update_node_property(field, value)
+      update_node_properties(field => value)
+      true
+    end
+    alias update_column update_node_property
+
+    def update_node_properties(hash)
+      fail ::Neo4j::Error, 'can not update on a new record object' unless persisted?
+      self.class.run_transaction do
+        db_values = props_for_db(hash)
+        neo4j_query(query_as(:n).set(n: db_values))
+        db_values.each_pair { |k, v| self.public_send(:"#{k}=", v) }
+        _persisted_obj.props.merge!(db_values)
+        db_values.each_key { |k| changed_attributes.delete(k) }
+        true
+      end
+    end
+    alias update_columns update_node_properties
+
     # Same as {#update_attributes}, but raises an exception if saving fails.
     def update!(attributes)
       self.class.run_transaction do
